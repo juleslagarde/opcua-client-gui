@@ -1,0 +1,57 @@
+name: Build and Release Executable
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers the workflow on version tags (e.g., v1.0.0)
+
+jobs:
+  build:
+    runs-on: windows-latest  # Use Windows to build a .exe file
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller asyncua opcua-widgets>=0.6.0 PyQt5 pyqtgraph numpy
+
+    - name: Build Executable
+      run: |
+        pyinstaller --onefile uaclient/mainwindow.py
+
+    - name: Upload Executable as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: opcua-client
+        path: dist/mainwindow.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Build Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: opcua-client
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          This release includes the standalone executable for opcua-client GUI.
+        draft: false
+        prerelease: false
+        files: dist/mainwindow.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
